@@ -5,6 +5,7 @@ export const config = {
   "homepage_password": "",
   "cache_time": 7200,
   "douban_proxy": "https://cors.isteed.cc/",
+  "downstream_proxy": "https://cors.isteed.cc/",
   "image_proxy": "https://image.baidu.com/search/down?url=",
   "api_site": {
     "okzy": {

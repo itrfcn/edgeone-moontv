@@ -27,9 +27,9 @@ export async function searchFromApi(
     )}`;
     const apiName = apiSite.name;
 
-    // 添加超时处理
+    // 添加超时处理（增加到15秒，让更多资源站有机会响应）
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     // 处理API URL，应用代理配置
     const proxiedApiUrl = processDownstreamUrl(apiUrl);
@@ -120,7 +120,7 @@ export async function searchFromApi(
             const pageController = new AbortController();
             const pageTimeoutId = setTimeout(
               () => pageController.abort(),
-              8000
+              15000 // 增加超时时间到15秒
             );
 
             // 处理API URL，应用代理配置

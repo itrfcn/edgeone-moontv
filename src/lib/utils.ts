@@ -131,7 +131,17 @@ export function processDownstreamUrl(originalUrl: string): string {
   const proxyUrl = getDownstreamProxyUrl();
   if (!proxyUrl) return originalUrl;
 
-  return `${proxyUrl}${encodeURIComponent(originalUrl)}`;
+  // 处理不同格式的代理URL
+  // 如果代理URL以https://或http://结尾，则去掉原始URL的协议部分
+  // 否则，直接将原始URL附加到代理URL后面
+  if (proxyUrl.endsWith('https://') || proxyUrl.endsWith('http://')) {
+    // 去掉原始URL的协议部分（http://或https://）
+    const urlWithoutProtocol = originalUrl.replace(/^https?:\/\//, '');
+    return `${proxyUrl}${urlWithoutProtocol}`;
+  } else {
+    // 直接将原始URL附加到代理URL后面
+    return `${proxyUrl}${originalUrl}`;
+  }
 }
 
 export function cleanHtmlTags(text: string): string {

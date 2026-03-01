@@ -621,17 +621,33 @@ function PlayPageClient() {
         const pages = await Promise.all(tasks);
         const all = pages.flat();
 
-        const results = all.filter((result: SearchResult) =>
-          result.title.replaceAll(' ', '').toLowerCase() ===
-          videoTitleRef.current.replaceAll(' ', '').toLowerCase() &&
-          (videoYearRef.current
+        // 使用与搜索相同的关键词进行过滤
+        const normalizedQuery = query.trim().replaceAll(' ', '').toLowerCase();
+        
+        const results = all.filter((result: SearchResult) => {
+          // 严格的标题匹配：检查搜索标题是否与结果标题完全匹配或结果标题是搜索标题的完整子集（忽略空格和大小写）
+          const normalizedResultTitle = result.title.replaceAll(' ', '').toLowerCase();
+          const normalizedQueryTitle = searchTitle || videoTitle;
+          const normalizedTitle = normalizedQueryTitle.replaceAll(' ', '').toLowerCase();
+          
+          // 严格匹配：结果标题必须包含完整的搜索关键词，且关键词顺序一致
+          // 使用正则表达式进行更严格的匹配
+          const titleRegex = new RegExp(normalizedTitle.split('').map(char => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*'), 'i');
+          const titleMatch = titleRegex.test(normalizedResultTitle);
+          
+          // 严格的年份匹配：如果有年份参数，则检查结果年份是否与该年份完全匹配
+          const yearMatch = videoYearRef.current 
             ? result.year.toLowerCase() === videoYearRef.current.toLowerCase()
-            : true) &&
-          (searchType
+            : true;
+          
+          // 类型匹配：如果有搜索类型，则检查集数是否符合类型要求
+          const typeMatch = searchType
             ? (searchType === 'tv' && result.episodes.length > 1) ||
-            (searchType === 'movie' && result.episodes.length === 1)
-            : true)
-        );
+              (searchType === 'movie' && result.episodes.length >= 1)
+            : true;
+          
+          return titleMatch && yearMatch && typeMatch;
+        });
         setAvailableSources(results);
         return results;
       } catch (err) {
