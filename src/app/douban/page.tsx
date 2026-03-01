@@ -95,21 +95,24 @@ function DoubanPageClient() {
         }
       }
     } else {
-      // 原有逻辑
-      if (type === 'movie') {
-        setPrimarySelection('热门');
-        setSecondarySelection('全部');
-      } else if (type === 'tv') {
-        setPrimarySelection('');
-        setSecondarySelection('tv');
-      } else if (type === 'show') {
-        setPrimarySelection('');
-        setSecondarySelection('show');
-      } else {
-        setPrimarySelection('');
-        setSecondarySelection('全部');
+        // 原有逻辑
+        if (type === 'movie') {
+          setPrimarySelection('热门');
+          setSecondarySelection('全部');
+        } else if (type === 'tv' || type === 'tv_animation' || type === 'tv_documentary') {
+          setPrimarySelection('');
+          setSecondarySelection(type);
+        } else if (type === 'animation') {
+          setPrimarySelection('');
+          setSecondarySelection('动画');
+        } else if (type === 'show') {
+          setPrimarySelection('');
+          setSecondarySelection('show');
+        } else {
+          setPrimarySelection('');
+          setSecondarySelection('全部');
+        }
       }
-    }
 
     // 使用短暂延迟确保状态更新完成后标记选择器准备好
     const timer = setTimeout(() => {
@@ -125,12 +128,21 @@ function DoubanPageClient() {
   // 生成API请求参数的辅助函数
   const getRequestParams = useCallback(
     (pageStart: number) => {
-      // 当type为tv或show时，kind统一为'tv'，category使用type本身
-      if (type === 'tv' || type === 'show') {
+      // 根据type设置正确的kind参数
+      if (type === 'tv' || type === 'show' || type === 'tv_animation' || type === 'tv_documentary') {
         return {
-          kind: 'tv' as const,
-          category: type,
+          kind: type === 'show' ? 'show' as const : 'tv' as const,
+          category: '热门',
           type: secondarySelection,
+          pageLimit: 25,
+          pageStart,
+        };
+      } else if (type === 'animation') {
+        // 动漫类型使用电影API获取数据
+        return {
+          kind: 'movie' as const,
+          category: '热门',
+          type: '动画',
           pageLimit: 25,
           pageStart,
         };
@@ -138,7 +150,7 @@ function DoubanPageClient() {
 
       // 电影类型保持原逻辑
       return {
-        kind: type as 'tv' | 'movie',
+        kind: type as 'movie',
         category: primarySelection,
         type: secondarySelection,
         pageLimit: 25,
@@ -147,6 +159,42 @@ function DoubanPageClient() {
     },
     [type, primarySelection, secondarySelection]
   );
+
+  // 客户端地区过滤函数
+  const filterDataByRegion = useCallback((data: DoubanItem[]) => {
+    // 如果不是电影类型或地区选择为"全部"，则返回所有数据
+    if (type !== 'movie' || secondarySelection === '全部') {
+      return data;
+    }
+
+    // 如果是热门分类，直接返回所有数据（已经由API筛选）
+    if (primarySelection === '热门') {
+      return data;
+    }
+
+    // 简单的地区过滤逻辑：根据电影标题或名称中的语言特征进行过滤
+    // 这是一个基本的实现，实际应用中可以使用更复杂的规则或API
+    return data.filter(item => {
+      const title = item.title.toLowerCase();
+      
+      switch (secondarySelection) {
+        case '华语':
+          // 华语电影通常包含中文字符
+          return /[\u4e00-\u9fa5]/.test(title);
+        case '欧美':
+          // 欧美电影通常只包含英文字符
+          return /^[a-zA-Z\s\d\W]+$/.test(title);
+        case '韩国':
+          // 韩国电影可能包含韩文或"韩"、"Korea"等关键词
+          return /(韩|korea|korean)/i.test(title);
+        case '日本':
+          // 日本电影可能包含日文或"日"、"Japan"等关键词
+          return /(日|japan|japanese)/i.test(title);
+        default:
+          return true;
+      }
+    });
+  }, [type, secondarySelection, primarySelection]);
 
   // 防抖的数据加载函数
   const loadInitialData = useCallback(async () => {
@@ -176,7 +224,9 @@ function DoubanPageClient() {
       }
 
       if (data.code === 200) {
-        setDoubanData(data.list);
+        // 应用客户端地区过滤
+        const filteredData = filterDataByRegion(data.list);
+        setDoubanData(filteredData);
         setHasMore(data.list.length === 25);
         setLoading(false);
       } else {
@@ -191,6 +241,7 @@ function DoubanPageClient() {
     secondarySelection,
     getRequestParams,
     customCategories,
+    filterDataByRegion,
   ]);
 
   // 只在选择器准备好后才加载数据
@@ -362,6 +413,12 @@ function DoubanPageClient() {
       ? '电视剧'
       : type === 'show'
       ? '综艺'
+      : type === 'tv_animation'
+      ? '动漫'
+      : type === 'tv_documentary'
+      ? '纪录片'
+      : type === 'animation'
+      ? '动漫'
       : '自定义';
   };
 
@@ -393,7 +450,7 @@ function DoubanPageClient() {
           {type !== 'custom' ? (
             <div className='bg-white/60 dark:bg-gray-800/40 rounded-2xl p-4 sm:p-6 border border-gray-200/30 dark:border-gray-700/30 backdrop-blur-sm'>
               <DoubanSelector
-                type={type as 'movie' | 'tv' | 'show'}
+                type={(type.startsWith('tv') ? 'tv' : type) as 'movie' | 'tv' | 'show'}
                 primarySelection={primarySelection}
                 secondarySelection={secondarySelection}
                 onPrimaryChange={handlePrimaryChange}

@@ -1,5 +1,5 @@
 import { API_CONFIG, ApiSite, getConfig } from '@/lib/config';
-import { processDoubanUrl } from './utils';
+import { processDoubanUrl, processDownstreamUrl } from './utils';
 import { SearchResult } from '@/lib/types';
 import { cleanHtmlTags } from '@/lib/utils';
 
@@ -31,8 +31,11 @@ export async function searchFromApi(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    // 浏览器直连，必要时可走公共或自有代理（用与豆瓣相同的兜底思路可另行加入）
-    const response = await fetch(apiUrl, {
+    // 处理API URL，应用代理配置
+    const proxiedApiUrl = processDownstreamUrl(apiUrl);
+
+    // 浏览器直连或通过代理请求
+    const response = await fetch(proxiedApiUrl, {
       headers: API_CONFIG.search.headers,
       signal: controller.signal,
     });
@@ -120,7 +123,9 @@ export async function searchFromApi(
               8000
             );
 
-            const pageResponse = await fetch(pageUrl, {
+            // 处理API URL，应用代理配置
+            const proxiedPageUrl = processDownstreamUrl(pageUrl);
+            const pageResponse = await fetch(proxiedPageUrl, {
               headers: API_CONFIG.search.headers,
               signal: pageController.signal,
             });
@@ -208,7 +213,9 @@ export async function getDetailFromApi(
 
   let response: Response;
   try {
-    response = await fetch(detailUrl, {
+    // 处理API URL，应用代理配置
+    const proxiedDetailUrl = processDownstreamUrl(detailUrl);
+    response = await fetch(proxiedDetailUrl, {
       headers: API_CONFIG.detail.headers,
       signal: controller.signal,
     });
@@ -311,7 +318,9 @@ async function handleSpecialSourceDetail(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  const response = await fetch(detailUrl, {
+  // 处理API URL，应用代理配置
+  const proxiedDetailUrl = processDownstreamUrl(detailUrl);
+  const response = await fetch(proxiedDetailUrl, {
     headers: API_CONFIG.detail.headers,
     signal: controller.signal,
   });

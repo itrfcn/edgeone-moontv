@@ -10,7 +10,7 @@ interface SelectorOption {
 }
 
 interface DoubanSelectorProps {
-  type: 'movie' | 'tv' | 'show';
+  type: 'movie' | 'tv' | 'show' | 'animation';
   primarySelection?: string;
   secondarySelection?: string;
   onPrimaryChange: (value: string) => void;
@@ -59,19 +59,17 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
   // 电视剧选择器选项
   const tvOptions: SelectorOption[] = [
     { label: '全部', value: 'tv' },
-    { label: '国产', value: 'tv_domestic' },
-    { label: '欧美', value: 'tv_american' },
-    { label: '日本', value: 'tv_japanese' },
-    { label: '韩国', value: 'tv_korean' },
-    { label: '动漫', value: 'tv_animation' },
+    { label: '国产剧', value: 'tv_domestic' },
+    { label: '美剧', value: 'tv_american' },
+    { label: '英剧', value: 'tv_english' },
+    { label: '日剧', value: 'tv_japanese' },
+    { label: '韩剧', value: 'tv_korean' },
     { label: '纪录片', value: 'tv_documentary' },
   ];
 
   // 综艺选择器选项
   const showOptions: SelectorOption[] = [
     { label: '全部', value: 'show' },
-    { label: '国内', value: 'show_domestic' },
-    { label: '国外', value: 'show_foreign' },
   ];
 
   // 更新指示器位置的通用函数
@@ -138,6 +136,9 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
       secondaryActiveIndex = showOptions.findIndex(
         (opt) => opt.value === (secondarySelection || showOptions[0].value)
       );
+    } else if (type === 'animation') {
+      // 动漫类型只有一个选项，始终选中第一个
+      secondaryActiveIndex = 0;
     }
 
     if (secondaryActiveIndex >= 0) {
@@ -186,6 +187,10 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
         (opt) => opt.value === secondarySelection
       );
       options = showOptions;
+    } else if (type === 'animation') {
+      // 动漫类型只有一个选项，始终选中
+      activeIndex = 0;
+      options = [{ label: '全部', value: '全部' }];
     }
 
     if (options.length > 0) {
@@ -318,6 +323,23 @@ const DoubanSelector: React.FC<DoubanSelectorProps> = ({
               showOptions,
               secondarySelection || showOptions[0].value,
               onSecondaryChange,
+              false
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 动漫类型 - 只显示全部分类 */}
+      {type === 'animation' && (
+        <div className='flex flex-col sm:flex-row sm:items-center gap-2'>
+          <span className='text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[48px]'>
+            类型
+          </span>
+          <div className='overflow-x-auto'>
+            {renderCapsuleSelector(
+              [{ label: '全部', value: '全部' }],
+              '全部',
+              () => {}, // 不需要实际的回调，因为只有一个选项
               false
             )}
           </div>

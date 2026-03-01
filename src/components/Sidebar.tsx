@@ -2,7 +2,7 @@
 
 'use client';
 
-import { Clover, Film, Home, Menu, Search, Star, Tv } from 'lucide-react';
+import { Clover, Film, Home, Menu, Search, Sparkles, Star, Tv } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -140,6 +140,7 @@ const Sidebar = ({ onToggle, activePath = '/' }: SidebarProps) => {
       label: '综艺',
       href: '/douban?type=show',
     },
+    {      icon: Sparkles,      label: '动漫',      href: '/douban?type=animation',    },
   ]);
 
   useEffect(() => {

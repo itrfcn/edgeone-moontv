@@ -38,6 +38,11 @@ const MobileBottomNav = ({ activePath }: MobileBottomNavProps) => {
       label: '综艺',
       href: '/douban?type=show',
     },
+    {
+      icon: Tv,
+      label: '动漫',
+      href: '/douban?type=animation',
+    },
   ]);
 
   useEffect(() => {

@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 
 import Hls from 'hls.js';
+import config from './runtime';
+
 
 /**
  * 获取图片代理 URL 设置
@@ -8,7 +10,13 @@ import Hls from 'hls.js';
 export function getImageProxyUrl(): string | null {
   if (typeof window === 'undefined') return null;
 
-  // 本地未开启图片代理，则不使用代理
+  // 优先从 runtime.ts 配置中获取
+  const runtimeImageProxy = (config as any).image_proxy;
+  if (runtimeImageProxy && runtimeImageProxy.trim()) {
+    return runtimeImageProxy.trim();
+  }
+
+  // 然后检查 localStorage 设置
   const enableImageProxy = localStorage.getItem('enableImageProxy');
   if (enableImageProxy !== null) {
     if (!JSON.parse(enableImageProxy) as boolean) {
@@ -16,6 +24,7 @@ export function getImageProxyUrl(): string | null {
     }
   }
 
+  // 然后从 localStorage 获取代理 URL
   const localImageProxy = localStorage.getItem('imageProxyUrl');
   if (localImageProxy != null) {
     return localImageProxy.trim() ? localImageProxy.trim() : null;
@@ -37,7 +46,17 @@ export function processImageUrl(originalUrl: string): string {
   const proxyUrl = getImageProxyUrl();
   if (!proxyUrl) return originalUrl;
 
-  return `${proxyUrl}${encodeURIComponent(originalUrl)}`;
+  // 处理不同类型的代理 URL
+  if (proxyUrl.endsWith('https://') || proxyUrl.endsWith('http://')) {
+    // 路径类型代理：https://proxy.example.com/
+    return `${proxyUrl}${originalUrl.replace(/^https?:\/\//, '')}`;
+  } else if (proxyUrl.includes('?url=')) {
+    // 查询参数类型代理：https://image.baidu.com/search/down?url=
+    return `${proxyUrl}${encodeURIComponent(originalUrl)}`;
+  } else {
+    // 其他类型代理，直接拼接
+    return `${proxyUrl}${originalUrl}`;
+  }
 }
 
 /**
@@ -59,7 +78,13 @@ export function getDoubanProxyUrl(): string | null {
     return localDoubanProxy.trim() ? localDoubanProxy.trim() : null;
   }
 
-  // 如果未设置，则使用全局对象
+  // 优先从 runtime.ts 配置中获取
+  const runtimeDoubanProxy = (config as any).douban_proxy;
+  if (runtimeDoubanProxy && runtimeDoubanProxy.trim()) {
+    return runtimeDoubanProxy.trim();
+  }
+
+  // 作为后备，使用全局对象
   const serverDoubanProxy = (window as any).RUNTIME_CONFIG?.DOUBAN_PROXY;
   return serverDoubanProxy && serverDoubanProxy.trim()
     ? serverDoubanProxy.trim()
@@ -73,6 +98,37 @@ export function processDoubanUrl(originalUrl: string): string {
   if (!originalUrl) return originalUrl;
 
   const proxyUrl = getDoubanProxyUrl();
+  if (!proxyUrl) return originalUrl;
+
+  return `${proxyUrl}${encodeURIComponent(originalUrl)}`;
+}
+
+/**
+ * 获取下游代理 URL 设置
+ */
+export function getDownstreamProxyUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  // 优先从 runtime.ts 配置中获取
+  const runtimeDownstreamProxy = (config as any).downstream_proxy;
+  if (runtimeDownstreamProxy && runtimeDownstreamProxy.trim()) {
+    return runtimeDownstreamProxy.trim();
+  }
+
+  // 作为后备，使用全局对象
+  const serverDownstreamProxy = (window as any).RUNTIME_CONFIG?.DOWNSTREAM_PROXY;
+  return serverDownstreamProxy && serverDownstreamProxy.trim()
+    ? serverDownstreamProxy.trim()
+    : null;
+}
+
+/**
+ * 处理下游 API URL，如果设置了下游代理则使用代理
+ */
+export function processDownstreamUrl(originalUrl: string): string {
+  if (!originalUrl) return originalUrl;
+
+  const proxyUrl = getDownstreamProxyUrl();
   if (!proxyUrl) return originalUrl;
 
   return `${proxyUrl}${encodeURIComponent(originalUrl)}`;

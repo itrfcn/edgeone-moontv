@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 
 import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
 import { checkForUpdates, CURRENT_VERSION, UpdateStatus } from '@/lib/version';
+import runtimeConfig from '@/lib/runtime';
 
 interface AuthInfo {
   username?: string;
@@ -75,8 +76,9 @@ export const UserMenu: React.FC = () => {
       }
 
       const savedEnableDoubanProxy = localStorage.getItem('enableDoubanProxy');
+      // 优先使用 runtimeConfig 中的配置
       const defaultDoubanProxy =
-        (window as any).RUNTIME_CONFIG?.DOUBAN_PROXY || '';
+        runtimeConfig.douban_proxy || (window as any).RUNTIME_CONFIG?.DOUBAN_PROXY || '';
       if (savedEnableDoubanProxy !== null) {
         setEnableDoubanProxy(JSON.parse(savedEnableDoubanProxy));
       } else if (defaultDoubanProxy) {
@@ -91,12 +93,14 @@ export const UserMenu: React.FC = () => {
       }
 
       const savedEnableImageProxy = localStorage.getItem('enableImageProxy');
-      const defaultImageProxy =
-        (window as any).RUNTIME_CONFIG?.IMAGE_PROXY || '';
+      // 优先使用 runtimeConfig 中的配置
+      const defaultImageProxy = runtimeConfig.image_proxy || (window as any).RUNTIME_CONFIG?.IMAGE_PROXY || '';
       if (savedEnableImageProxy !== null) {
         setEnableImageProxy(JSON.parse(savedEnableImageProxy));
       } else if (defaultImageProxy) {
         setEnableImageProxy(true);
+        // 将默认启用状态保存到 localStorage
+        localStorage.setItem('enableImageProxy', 'true');
       }
 
       const savedImageProxyUrl = localStorage.getItem('imageProxyUrl');
@@ -104,6 +108,8 @@ export const UserMenu: React.FC = () => {
         setImageProxyUrl(savedImageProxyUrl);
       } else if (defaultImageProxy) {
         setImageProxyUrl(defaultImageProxy);
+        // 将默认代理 URL 保存到 localStorage
+        localStorage.setItem('imageProxyUrl', defaultImageProxy);
       }
 
       const savedEnableOptimization =

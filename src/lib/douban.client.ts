@@ -2,7 +2,7 @@ import { DoubanItem, DoubanResult } from './types';
 import { getDoubanProxyUrl } from './utils';
 
 interface DoubanCategoriesParams {
-  kind: 'tv' | 'movie';
+  kind: 'tv' | 'movie' | 'show';
   category: string;
   type: string;
   pageLimit?: number;
@@ -42,7 +42,10 @@ async function fetchWithTimeout(
 
   // 检查是否使用代理
   const proxyUrl = getDoubanProxyUrl();
-  const finalUrl = proxyUrl ? `${proxyUrl}${encodeURIComponent(url)}` : url;
+  // 正确处理代理URL，避免对整个URL编码
+  const finalUrl = proxyUrl ? 
+    (proxyUrl.endsWith('https://') ? `${proxyUrl}${url.replace(/^https?:\/\//, '')}` : `${proxyUrl}${url}`) 
+    : url;
 
   const fetchOptions: RequestInit = {
     ...options,
@@ -116,8 +119,8 @@ export async function fetchDoubanCategories(
   const { kind, category, type, pageLimit = 20, pageStart = 0 } = params;
 
   // 验证参数
-  if (!['tv', 'movie'].includes(kind)) {
-    throw new Error('kind 参数必须是 tv 或 movie');
+  if (!['tv', 'movie', 'show'].includes(kind)) {
+    throw new Error('kind 参数必须是 tv、movie 或 show');
   }
 
   if (!category || !type) {
@@ -132,7 +135,69 @@ export async function fetchDoubanCategories(
     throw new Error('pageStart 不能小于 0');
   }
 
-  const target = `https://m.douban.com/rexxar/api/v2/subject/recent_hot/${kind}?start=${pageStart}&limit=${pageLimit}&category=${category}&type=${type}`;
+  // 首先定义所有需要的变量
+  let tag = '热门'; // 默认标签
+  let apiType = kind;
+  let finalTag = tag;
+  
+  // 根据不同类型处理
+  if (kind === 'show') {
+    // 综艺类型使用专门的API端点
+    apiType = 'tv'; // 仍然使用tv类型API
+    
+    // 尝试使用豆瓣API支持的具体标签
+    if (type === 'show') {
+      finalTag = '综艺';
+    } else if (type === 'show_domestic') {
+      finalTag = '国产剧'; // 尝试使用国产剧标签，然后在客户端过滤
+    } else if (type === 'show_foreign') {
+      finalTag = '欧美剧'; // 尝试使用欧美剧标签，然后在客户端过滤
+    } else if (type === 'show_korean') {
+      finalTag = '韩剧'; // 尝试使用韩剧标签，然后在客户端过滤
+    } else if (type === 'show_japanese') {
+      finalTag = '日剧'; // 尝试使用日剧标签，然后在客户端过滤
+    } else {
+      finalTag = '综艺'; // 默认使用综艺标签
+    }
+  } else if (kind === 'movie') {
+    // 电影类型处理
+    // 恢复原始的标签组合逻辑，确保热门电影的地区筛选正常工作
+    if (category === '热门') {
+      // 热门电影直接使用地区作为标签
+      tag = type === '全部' ? '热门' : type;
+    } else if (type === '全部') {
+      // 其他分类且地区为"全部"时，直接使用分类标签
+      tag = category;
+    } else {
+      // 其他分类且选择了地区时，我们将在客户端进行过滤
+      // 因为豆瓣API可能不支持这些组合
+      tag = category;
+    }
+    
+    finalTag = tag;
+  } else if (kind === 'tv') {
+    // 电视剧类型处理
+    if (type === 'tv') {
+      tag = '热门';
+    } else if (type === 'tv_domestic') {
+      tag = '国产剧';
+    } else if (type === 'tv_american') {
+      tag = '美剧';
+    } else if (type === 'tv_english') {
+      tag = '英剧';
+    } else if (type === 'tv_japanese') {
+      tag = '日剧';
+    } else if (type === 'tv_korean') {
+      tag = '韩剧';
+    } else if (type === 'tv_animation' || type === 'animation') {
+      tag = '动画'; // 尝试使用'动画'标签代替'动漫'
+    } else if (type === 'tv_documentary') {
+      tag = '纪录片';
+    }
+    finalTag = tag;
+  }
+
+  const target = `https://movie.douban.com/j/search_subjects?type=${apiType}&tag=${finalTag}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
 
   try {
     const response = await fetchWithTimeout(target);
@@ -141,15 +206,16 @@ export async function fetchDoubanCategories(
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
 
-    const doubanData: DoubanCategoryApiResponse = await response.json();
+    // 正确的API响应格式是 { subjects: [...] }
+    const doubanData = await response.json();
 
     // 转换数据格式
-    const list: DoubanItem[] = doubanData.items.map((item) => ({
+    const list: DoubanItem[] = doubanData.subjects.map((item: any) => ({
       id: item.id,
       title: item.title,
-      poster: item.pic?.normal || item.pic?.large || '',
-      rate: item.rating?.value ? item.rating.value.toFixed(1) : '',
-      year: item.card_subtitle?.match(/(\d{4})/)?.[1] || '',
+      poster: item.cover || '',
+      rate: item.rate || '',
+      year: '', // 这个API没有提供年份信息
     }));
 
     return {
@@ -205,8 +271,8 @@ export async function fetchDoubanList(
     throw new Error('tag 和 type 参数不能为空');
   }
 
-  if (!['tv', 'movie'].includes(type)) {
-    throw new Error('type 参数必须是 tv 或 movie');
+  if (!['tv', 'movie', 'show'].includes(type)) {
+    throw new Error('type 参数必须是 tv、movie 或 show');
   }
 
   if (pageLimit < 1 || pageLimit > 100) {
@@ -217,7 +283,67 @@ export async function fetchDoubanList(
     throw new Error('pageStart 不能小于 0');
   }
 
-  const target = `https://movie.douban.com/j/search_subjects?type=${type}&tag=${tag}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
+  // 首先定义所有需要的变量
+  let apiType = type;
+  let finalTag = tag;
+  
+  // 设置正确的apiType，确保只使用豆瓣API支持的类型
+  if (type.startsWith('tv_')) {
+    apiType = 'tv'; // tv_animation、tv_documentary等都使用tv类型API
+  } else if (type === 'show') {
+    apiType = 'tv'; // 综艺类型也使用tv类型API
+  } else if (type === 'animation') {
+    apiType = 'movie'; // 动漫类型使用movie类型API获取数据
+  }
+  
+  // 根据不同类型处理
+  if (type === 'show') {
+    // 综艺类型使用专门的API端点
+    
+    // 尝试使用豆瓣API支持的具体标签
+    if (tag === 'show') {
+      finalTag = '综艺';
+    } else if (tag === 'show_domestic') {
+      finalTag = '国产剧'; // 尝试使用国产剧标签
+    } else if (tag === 'show_foreign') {
+      finalTag = '欧美剧'; // 尝试使用欧美剧标签
+    } else if (tag === 'show_korean') {
+      finalTag = '韩剧'; // 尝试使用韩剧标签
+    } else if (tag === 'show_japanese') {
+      finalTag = '日剧'; // 尝试使用日剧标签
+    } else {
+      finalTag = '综艺'; // 默认使用综艺标签
+    }
+  } else if (type === 'movie') {
+    // 电影类型直接使用传入的tag
+    finalTag = tag;
+  } else if (type === 'animation') {
+    // 独立动漫分类
+    finalTag = '动画'; // 使用'动画'标签
+  } else {
+    // 电视剧类型处理
+    if (tag === 'tv') {
+      finalTag = '热门';
+    } else if (tag === 'tv_domestic') {
+      finalTag = '国产剧';
+    } else if (tag === 'tv_american') {
+      finalTag = '美剧';
+    } else if (tag === 'tv_english') {
+      finalTag = '英剧';
+    } else if (tag === 'tv_japanese') {
+      finalTag = '日剧';
+    } else if (tag === 'tv_korean') {
+      finalTag = '韩剧';
+    } else if (tag === 'tv_animation') {
+      finalTag = '动画'; // 尝试使用'动画'标签代替'动漫'
+    } else if (tag === 'tv_documentary') {
+      finalTag = '纪录片';
+    } else {
+      finalTag = tag;
+    }
+  }
+
+  const target = `https://movie.douban.com/j/search_subjects?type=${apiType}&tag=${finalTag}&sort=recommend&page_limit=${pageLimit}&page_start=${pageStart}`;
 
   try {
     const response = await fetchWithTimeout(target);
@@ -226,15 +352,16 @@ export async function fetchDoubanList(
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
 
-    const doubanData: DoubanCategoryApiResponse = await response.json();
+    // 正确的API响应格式是 { subjects: [...] }
+    const doubanData = await response.json();
 
     // 转换数据格式
-    const list: DoubanItem[] = doubanData.items.map((item) => ({
+    const list: DoubanItem[] = doubanData.subjects.map((item: any) => ({
       id: item.id,
       title: item.title,
-      poster: item.pic?.normal || item.pic?.large || '',
-      rate: item.rating?.value ? item.rating.value.toFixed(1) : '',
-      year: item.card_subtitle?.match(/(\d{4})/)?.[1] || '',
+      poster: item.cover || '',
+      rate: item.rate || '',
+      year: '', // 这个API没有提供年份信息
     }));
 
     return {
