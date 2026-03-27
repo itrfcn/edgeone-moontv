@@ -5,10 +5,6 @@
   "downstream_proxy": "https://cors.isteed.cc/",
   "image_proxy": "https://image.baidu.com/search/down?url=",
   "api_site": {
-    "okzy": {
-      "api": "https://dh.ha.cn/api.php/provide/vod",
-      "name": "OK资源"
-    },
     "ruyi": {
       "api": "https://cj.rycjapi.com/api.php/provide/vod",
       "name": "如意资源"
