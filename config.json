@@ -18,12 +18,8 @@
       "name": "飘零资源"
     },
     "lzi": {
-      "api": "http://cj.lziapi.com/api.php/provide/vod/from/lzm3u8",
+      "api": "https://cj.lziapi.com/api.php/provide/vod/at/json/",
       "name": "量子资源"
-    },
-    "taopian": {
-      "api": "https://taopianapi.com/cjapi/mc10/vod/json.html",
-      "name": "陶片资源"
     },
     "wolong": {
       "api": "https://collect.wolongzyw.com/api.php/provide/vod",
